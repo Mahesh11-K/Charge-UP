@@ -1,0 +1,30 @@
+{
+  "name": "chargeup-backend",
+  "version": "1.0.0",
+  "description": "Chargeup Platform Backend - Node.js, Express, MySQL, Smartcar API & Real-time IoT",
+  "main": "src/app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "google-auth-library": "^10.9.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.23.1",
+    "sequelize": "^6.37.8",
+    "smartcar": "^10.4.0",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

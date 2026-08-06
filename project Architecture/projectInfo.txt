@@ -1,0 +1,41 @@
+ev-charge-network/
+├── backend/                  # Node.js + Express (JavaScript)
+│   ├── config/
+│   │   └── db.js
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   └── stationController.js
+│   ├── models/
+│   │   ├── User.js
+│   │   └── Station.js
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   └── stationRoutes.js
+│   ├── middleware/
+│   │   └── authMiddleware.js
+│   ├── .env
+│   ├── package.json
+│   └── server.js
+│
+└── frontend/                 # React + Vite (TypeScript)
+    ├── public/
+    ├── src/
+    │   ├── assets/
+    │   ├── components/
+    │   │   ├── Navbar.tsx
+    │   │   └── StationCard.tsx
+    │   ├── pages/
+    │   │   ├── Home.tsx
+    │   │   ├── Login.tsx
+    │   │   └── Dashboard.tsx
+    │   ├── context/
+    │   │   └── AuthContext.tsx
+    │   ├── types/
+    │   │   └── index.ts
+    │   ├── App.tsx
+    │   ├── main.tsx
+    │   └── index.css
+    ├── index.html
+    ├── package.json
+    ├── tsconfig.json
+    └── vite.config.ts
