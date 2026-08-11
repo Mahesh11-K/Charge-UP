@@ -22,7 +22,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ⚡ 1. Rehydrate & Verify User Context on App Mount / Page Refresh
+  // ⚡ 1. User Logout Method
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    setError(null);
+    localStorage.removeItem('chargeup_token');
+    localStorage.removeItem('chargeup_user');
+    
+    API.post('/auth/logout').catch(() => {});
+  };
+
+  // ⚡ 2. Rehydrate & Verify User Context on App Mount / Page Refresh
   useEffect(() => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('chargeup_token');
@@ -40,8 +51,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           logout();
         }
-      } catch (err: any) {
-        console.warn('⚠️ Token verification failed on launch:', err?.response?.data?.error || err.message);
+      } catch (err: unknown) {
+        const message = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error || (err as Error)?.message;
+        console.warn('⚠️ Token verification failed on launch:', message);
         logout();
       } finally {
         setIsLoading(false);
@@ -55,7 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-  // ⚡ 2. User Sign Up Method
+  // ⚡ 3. User Sign Up Method
   const signup = async (credentials: SignUpInput): Promise<void> => {
     setIsLoading(true);
     setError(null);
@@ -76,16 +88,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('chargeup_token', newToken);
         localStorage.setItem('chargeup_user', JSON.stringify(newUser));
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.error || 'Registration failed. Please check your details and try again.';
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Registration failed. Please check your details and try again.';
       setError(errorMessage);
-      throw new Error(errorMessage);
+      throw new Error(errorMessage, { cause: err });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ⚡ 3. User Sign In Method
+  // ⚡ 4. User Sign In Method
   const signin = async (credentials: SignInInput): Promise<void> => {
     setIsLoading(true);
     setError(null);
@@ -104,16 +116,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('chargeup_token', newToken);
         localStorage.setItem('chargeup_user', JSON.stringify(newUser));
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.error || 'Sign in failed. Invalid email or password.';
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Sign in failed. Invalid email or password.';
       setError(errorMessage);
-      throw new Error(errorMessage);
+      throw new Error(errorMessage, { cause: err });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ⚡ 4. Save & Update Profile Method
+  // ⚡ 5. Save & Update Profile Method
   const updateUserProfile = async (profileData: UserProfile & { fullName?: string }): Promise<void> => {
     setIsLoading(true);
     setError(null);
@@ -125,24 +137,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(response.data.user);
         localStorage.setItem('chargeup_user', JSON.stringify(response.data.user));
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.error || 'Failed to save profile details.';
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save profile details.';
       setError(errorMessage);
-      throw new Error(errorMessage);
+      throw new Error(errorMessage, { cause: err });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // ⚡ 5. User Logout Method
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setError(null);
-    localStorage.removeItem('chargeup_token');
-    localStorage.removeItem('chargeup_user');
-    
-    API.post('/auth/logout').catch(() => {});
   };
 
   // ⚡ 6. Clear Error State

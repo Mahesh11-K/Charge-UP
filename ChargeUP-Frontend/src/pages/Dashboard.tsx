@@ -96,7 +96,7 @@ export const Dashboard: React.FC = () => {
           }
         }
 
-      } catch (e) {
+      } catch {
         // Fallback
       }
     };
@@ -139,7 +139,7 @@ export const Dashboard: React.FC = () => {
       localStorage.setItem(STORAGE_KEY_VEHICLES, JSON.stringify(updated));
       window.dispatchEvent(new Event(EVENT_TELEMETRY_UPDATE));
       await API.post('/vehicles/charge-limit', { vehicleId: activeVehicle.id, limit: newLimit });
-    } catch (e) {
+    } catch {
       // Local state updated
     }
 
@@ -157,8 +157,8 @@ export const Dashboard: React.FC = () => {
       } else {
         setSmartcarNotice('⚠️ Could not obtain Smartcar authorization URL.');
       }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Could not connect to Smartcar API. Make sure backend is running.';
+    } catch (err: unknown) {
+      const errorMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Could not connect to Smartcar API. Make sure backend is running.';
       setSmartcarNotice(`⚠️ ${errorMsg}`);
     } finally {
       setSmartcarLoading(false);
@@ -167,34 +167,35 @@ export const Dashboard: React.FC = () => {
 
   const activeVehicle = dashboardVehicles.find(v => v.id === activeVehicleId) || dashboardVehicles[0];
 
-  // Initialize Form with existing user/profile data
-  useEffect(() => {
-    if (user) {
-      setFullName(user.fullName || '');
-      const prof = user.profile;
-      if (prof) {
-        setMobileNumber(prof.mobileNumber || '');
-        setAddress(prof.address || '');
-        setCity(prof.city || '');
-        setStateName(prof.state || '');
-        setZipCode(prof.zipCode || '');
-        setGender(prof.gender || 'prefer_not_to_say');
-        setDateOfBirth(prof.dateOfBirth ? String(prof.dateOfBirth).split('T')[0] : '');
-        setEmergencyContact(prof.emergencyContact || '');
-        setEvModel(prof.evModel || '');
-        setBio(prof.bio || '');
-        if (prof.avatarUrl) {
-          setSelectedAvatar(prof.avatarUrl);
-        }
-      }
+  // Sync profile form state when user changes
+  const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
 
-      // Check if profile is empty -> default to edit mode for first-time profile creation
-      const isProfileEmpty = !prof || (!prof.mobileNumber && !prof.address);
-      if (isProfileEmpty) {
-        setIsEditing(true);
+  if (user && user.id !== loadedUserId) {
+    setLoadedUserId(user.id);
+    setFullName(user.fullName || '');
+    const prof = user.profile;
+    if (prof) {
+      setMobileNumber(prof.mobileNumber || '');
+      setAddress(prof.address || '');
+      setCity(prof.city || '');
+      setStateName(prof.state || '');
+      setZipCode(prof.zipCode || '');
+      setGender(prof.gender || 'prefer_not_to_say');
+      setDateOfBirth(prof.dateOfBirth ? String(prof.dateOfBirth).split('T')[0] : '');
+      setEmergencyContact(prof.emergencyContact || '');
+      setEvModel(prof.evModel || '');
+      setBio(prof.bio || '');
+      if (prof.avatarUrl) {
+        setSelectedAvatar(prof.avatarUrl);
       }
     }
-  }, [user]);
+
+    // Check if profile is empty -> default to edit mode for first-time profile creation
+    const isProfileEmpty = !prof || (!prof.mobileNumber && !prof.address);
+    if (isProfileEmpty) {
+      setIsEditing(true);
+    }
+  }
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,8 +235,9 @@ export const Dashboard: React.FC = () => {
         setSaveSuccess('Profile details saved & verified in MySQL database successfully!');
         setIsEditing(false);
       }
-    } catch (err: any) {
-      setSaveError(err.message || 'Failed to save profile details.');
+    } catch (err: unknown) {
+      const errorMsg = (err as Error)?.message || (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save profile details.';
+      setSaveError(errorMsg);
     } finally {
       setIsSaving(false);
     }

@@ -7,7 +7,7 @@ router.get('/smartcar/login',      vehicleController.getSmartcarAuthUrl);
 router.get('/smartcar/callback',   vehicleController.handleSmartcarCallback);
 router.get('/smartcar/status',     vehicleController.getSmartcarStatus);
 
-// Smartcar Access Token & Refresh Endpoints (https://smartcar.com/docs/api-reference/authorization/request-access-token)
+// Smartcar Access Token & Refresh Endpoints  
 router.post('/smartcar/token',   vehicleController.exchangeAccessToken);
 router.post('/smartcar/refresh', vehicleController.refreshAccessToken);
 

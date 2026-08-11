@@ -510,7 +510,7 @@ export const Hospitality: React.FC = () => {
               ].map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id as any)}
+                  onClick={() => setSelectedCategory(cat.id as 'all' | 'hotel' | 'cafe' | 'restaurant' | 'lounge')}
                   className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                     selectedCategory === cat.id
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-102'
@@ -530,7 +530,7 @@ export const Hospitality: React.FC = () => {
               </span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'rating' | 'distance' | 'reviews')}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
               >
                 <option value="rating">Highest Rated ⭐</option>

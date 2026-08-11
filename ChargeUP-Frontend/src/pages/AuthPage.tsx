@@ -1,5 +1,5 @@
 // src/pages/AuthPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FaFacebookF, 
@@ -31,7 +31,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialSignUp = false }) => 
   const location = useLocation();
 
   // Redirect target
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/dashboard';
 
   // Form states
   const [signInEmail, setSignInEmail] = useState<string>('');
@@ -47,10 +47,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialSignUp = false }) => 
   const [localError, setLocalError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Sync initialSignUp if passed as prop
-  useEffect(() => {
+  const [prevInitialSignUp, setPrevInitialSignUp] = useState<boolean>(initialSignUp);
+  if (prevInitialSignUp !== initialSignUp) {
+    setPrevInitialSignUp(initialSignUp);
     setIsSignUp(initialSignUp);
-  }, [initialSignUp]);
+  }
 
   const handleToggleMode = (mode: boolean) => {
     setIsSignUp(mode);
@@ -81,7 +82,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialSignUp = false }) => 
       setTimeout(() => {
         navigate(from, { replace: true });
       }, 500);
-    } catch (err: any) {
+    } catch {
       // Error handled by AuthContext state
     }
   };
@@ -115,7 +116,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialSignUp = false }) => 
       setTimeout(() => {
         navigate(from, { replace: true });
       }, 500);
-    } catch (err: any) {
+    } catch {
       // Error handled by AuthContext state
     }
   };

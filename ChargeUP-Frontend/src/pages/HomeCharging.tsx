@@ -35,6 +35,42 @@ export interface SmartPolicy {
   targetDepartureTime: string;
 }
 
+export interface EnodeVehicle {
+  id: string;
+  userId: string;
+  chargerId: string;
+  vendor: string;
+  model: string;
+  year: number;
+  title?: string;
+  vin?: string;
+  chargeState?: {
+    isCharging?: boolean;
+    batteryLevel?: number;
+    chargeRate?: number;
+    range?: number;
+    chargeTimeRemaining?: string | number;
+  };
+  homeStation?: {
+    name?: string;
+  };
+}
+
+export interface EnodeVehicleDetail extends EnodeVehicle {
+  odometer?: {
+    distance?: number;
+  };
+}
+
+export interface DiagnosticsData {
+  chargerId: string;
+  name: string;
+  status: string;
+  lineVoltage: string;
+  rcdSelfTest: string;
+  timestamp: string;
+}
+
 export interface HomeCharger {
   id: string;
   name: string;
@@ -452,21 +488,21 @@ const DEFAULT_CHARGERS: HomeCharger[] = [
     currentAmps: 30.0,
     voltage: 230,
     frequencyHz: 50.0,
-    sessionEnergyKwh: 14.8,
-    totalEnergyKwh: 1990.0,
-    sessionDurationMins: 130,
+    sessionEnergyKwh: 0,
+    totalEnergyKwh: 520.0,
+    sessionDurationMins: 0,
     costPerKwh: 0.35,
-    currentSessionCostEur: 5.18,
+    currentSessionCostEur: 0,
     smartPolicy: {
-      mode: "DYNAMIC_BALANCED",
+      mode: "OFF_PEAK",
       offPeakStart: "23:00",
-      offPeakEnd: "08:00",
-      solarMatchingEnabled: true,
-      dynamicLoadBalancing: true,
-      targetBatterySoc: 85,
-      targetDepartureTime: "07:15"
+      offPeakEnd: "07:00",
+      solarMatchingEnabled: false,
+      dynamicLoadBalancing: false,
+      targetBatterySoc: 80,
+      targetDepartureTime: "08:00"
     },
-    ownerName: "Orla McCarthy",
+    ownerName: "Niamh Brennan",
     evModelConnected: "Polestar 2 Long Range"
   }
 ];
@@ -476,7 +512,7 @@ const HomeCharging: React.FC = () => {
   const [chargers, setChargers] = useState<HomeCharger[]>(() => {
     const saved = localStorage.getItem('chargeup_home_chargers');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return DEFAULT_CHARGERS;
   });
@@ -491,6 +527,7 @@ const HomeCharging: React.FC = () => {
   const [filterRegion, setFilterRegion] = useState<string>(() => localStorage.getItem('chargeup_filter_region') || 'ALL');
   const [filterStatus, setFilterStatus] = useState<string>(() => localStorage.getItem('chargeup_filter_status') || 'ALL');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  void isLoading;
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -506,7 +543,7 @@ const HomeCharging: React.FC = () => {
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState<boolean>(false);
   const [showSchedulerModal, setShowSchedulerModal] = useState<boolean>(false);
   const [isDiagnosticsScanning, setIsDiagnosticsScanning] = useState<boolean>(false);
-  const [diagnosticsData, setDiagnosticsData] = useState<any>(null);
+  const [diagnosticsData, setDiagnosticsData] = useState<DiagnosticsData | null>(null);
 
   // Hardware Pairing States
   const [pairingVendor, setPairingVendor] = useState<string>('Easee Home');
@@ -517,18 +554,25 @@ const HomeCharging: React.FC = () => {
   // Connected EV Fleet Telemetry Modal States
   const [showVehicleSandboxModal, setShowVehicleSandboxModal] = useState<boolean>(false);
   const [activeVehApiTab, setActiveVehApiTab] = useState<'GET_VEHICLES' | 'GET_VEHICLE'>('GET_VEHICLES');
-  const [enodeVehiclesList, setEnodeVehiclesList] = useState<any[]>([]);
+  const [enodeVehiclesList, setEnodeVehiclesList] = useState<EnodeVehicle[]>([]);
   const [selectedVehId, setSelectedVehId] = useState<string>('veh_dub_001');
-  const [vehicleDetailData, setVehicleDetailData] = useState<any>(null);
+  const [vehicleDetailData, setVehicleDetailData] = useState<EnodeVehicleDetail | null>(null);
   const [isVehApiLoading, setIsVehApiLoading] = useState<boolean>(false);
   const [vendorFilter, setVendorFilter] = useState<string>('ALL');
   void isVehApiLoading;
   void vendorFilter;
   void setVendorFilter;
 
+  // Sync targetAmps when selectedCharger changes
+  const [prevSelectedChargerId, setPrevSelectedChargerId] = useState<string | undefined>(selectedCharger?.id);
+  if (selectedCharger && selectedCharger.id !== prevSelectedChargerId) {
+    setPrevSelectedChargerId(selectedCharger.id);
+    setTargetAmps(selectedCharger.currentAmps || selectedCharger.maxCurrentAmps);
+  }
+
   // Persistence Effects
   useEffect(() => { localStorage.setItem('chargeup_home_chargers', JSON.stringify(chargers)); }, [chargers]);
-  useEffect(() => { if (selectedCharger) localStorage.setItem('chargeup_selected_charger_id', selectedCharger.id); }, [selectedCharger?.id]);
+  useEffect(() => { if (selectedCharger) localStorage.setItem('chargeup_selected_charger_id', selectedCharger.id); }, [selectedCharger]);
   useEffect(() => { localStorage.setItem('chargeup_v2h_enabled', String(v2hEnabled)); }, [v2hEnabled]);
   useEffect(() => { localStorage.setItem('chargeup_climate_precon', String(climatePrecon)); }, [climatePrecon]);
   useEffect(() => { localStorage.setItem('chargeup_battery_preheat', String(batteryPreheat)); }, [batteryPreheat]);
@@ -542,14 +586,8 @@ const HomeCharging: React.FC = () => {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<{ [key: string]: maplibregl.Marker }>({});
 
-  useEffect(() => {
-    if (selectedCharger) {
-      setTargetAmps(selectedCharger.currentAmps || selectedCharger.maxCurrentAmps);
-    }
-  }, [selectedCharger?.id]);
-
-  // Load Chargers from Backend API
-  const fetchChargers = async () => {
+  // Manual Refresh Handler
+  const handleRefreshChargers = async () => {
     setIsLoading(true);
     try {
       const res = await API.get('/home-charging/chargers');
@@ -559,14 +597,34 @@ const HomeCharging: React.FC = () => {
         const match = res.data.chargers.find((c: HomeCharger) => c.id === savedId) || res.data.chargers[0];
         setSelectedCharger(match);
       }
-    } catch (err) {
+    } catch {
       console.warn('Running with ChargeUP interactive sandbox mode.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { fetchChargers(); }, []);
+  // Initial Load from Backend API
+  useEffect(() => {
+    let ignore = false;
+    const loadInitialChargers = async () => {
+      try {
+        const res = await API.get('/home-charging/chargers');
+        if (!ignore && res.data?.chargers?.length > 0) {
+          setChargers(res.data.chargers);
+          const savedId = localStorage.getItem('chargeup_selected_charger_id');
+          const match = res.data.chargers.find((c: HomeCharger) => c.id === savedId) || res.data.chargers[0];
+          setSelectedCharger(match);
+        }
+      } catch {
+        console.warn('Running with ChargeUP interactive sandbox mode.');
+      }
+    };
+    loadInitialChargers();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Filtered Charger List
   const filteredChargers = chargers.filter(c => {
@@ -637,7 +695,7 @@ const HomeCharging: React.FC = () => {
         }
       });
     }
-  }, [selectedCharger?.id, filterRegion, filterStatus]);
+  }, [selectedCharger, filteredChargers]);
 
   // Execute Control Action (START, PAUSE, STOP, BOOST)
   const handleControlAction = async (action: 'START' | 'PAUSE' | 'STOP' | 'BOOST') => {
@@ -655,7 +713,7 @@ const HomeCharging: React.FC = () => {
       setChargers(prev => prev.map(c => c.id === selectedCharger.id ? updated : c));
       setSelectedCharger(updated);
       showToast(`Command [${action}] executed successfully for ${selectedCharger.name}!`, 'success');
-    } catch (err: any) {
+    } catch {
       showToast(`Command [${action}] executed`, 'info');
     } finally {
       setActionLoading(false);
@@ -673,7 +731,7 @@ const HomeCharging: React.FC = () => {
       setChargers(prev => prev.map(c => c.id === selectedCharger.id ? updated : c));
       setSelectedCharger(updated);
       showToast(`Amperage limit updated to ${newAmps}A (${calcKw} kW)`, 'success');
-    } catch (err) {
+    } catch {
       showToast(`Current Limit set to ${newAmps}A`, 'info');
     }
   };
@@ -693,7 +751,7 @@ const HomeCharging: React.FC = () => {
       setChargers(prev => prev.map(c => c.id === selectedCharger.id ? updated : c));
       setSelectedCharger(updated);
       showToast(`Smart Policy updated to ${newPolicy.mode}`, 'success');
-    } catch (err) {
+    } catch {
       showToast(`Policy set to ${newPolicy.mode}`, 'info');
     }
   };
@@ -706,7 +764,7 @@ const HomeCharging: React.FC = () => {
       const queryParam = vFilter && vFilter !== 'ALL' ? `?vendor=${encodeURIComponent(vFilter)}` : '';
       const res = await API.get(`/home-charging/vehicles${queryParam}`);
       setEnodeVehiclesList(res.data?.data || []);
-    } catch (err) {
+    } catch {
       setEnodeVehiclesList(chargers.map((c, idx) => ({
         id: `veh_dub_00${idx + 1}`,
         userId: `user_dublin_driver_0${idx + 1}`,
@@ -729,8 +787,8 @@ const HomeCharging: React.FC = () => {
     try {
       const res = await API.get(`/home-charging/vehicles/${vId}`);
       setVehicleDetailData(res.data?.data || null);
-    } catch (err) {
-      console.warn(err);
+    } catch {
+      console.warn('Vehicle detail fetch fallback');
     } finally {
       setIsVehApiLoading(false);
     }
@@ -744,7 +802,7 @@ const HomeCharging: React.FC = () => {
       const res = await API.post(`/home-charging/chargers/${selectedCharger.id}/diagnostics`);
       setDiagnosticsData(res.data?.diagnostics || null);
       showToast(`Hardware Diagnostic Scan Completed for ${selectedCharger.name}`, 'success');
-    } catch (err) {
+    } catch {
       setDiagnosticsData({ chargerId: selectedCharger.id, name: selectedCharger.name, status: "HEALTHY", lineVoltage: "230V ±0.8%", rcdSelfTest: "PASSED", timestamp: new Date().toISOString() });
       showToast(`Diagnostic scan completed for ${selectedCharger.name}`, 'info');
     } finally {
@@ -762,7 +820,7 @@ const HomeCharging: React.FC = () => {
       setChargers(prev => prev.map(c => c.id === selectedCharger.id ? updated : c));
       setSelectedCharger(updated);
       showToast(`Hardware Cable Lock ${nextState ? 'ENGAGED & LOCKED' : 'RELEASED & UNLOCKED'}`, 'success');
-    } catch (err) {
+    } catch {
       const updated = { ...selectedCharger, isCableLocked: nextState };
       setChargers(prev => prev.map(c => c.id === selectedCharger.id ? updated : c));
       setSelectedCharger(updated);
@@ -950,7 +1008,7 @@ const HomeCharging: React.FC = () => {
                 </h3>
 
                 <button 
-                  onClick={fetchChargers}
+                  onClick={handleRefreshChargers}
                   disabled={isLoading}
                   className="text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5"
                 >
@@ -1503,7 +1561,7 @@ const HomeCharging: React.FC = () => {
                 { id: 'DYNAMIC_BALANCED', name: '⚖️ Dynamic Load', desc: 'Protect main fuse' },
                 { id: 'FAST_CHARGE', name: '⚡ Fast Boost', desc: 'Maximum power speed' }
               ].map(m => (
-                <div key={m.id} onClick={() => handleUpdateSmartPolicy({ mode: m.id as any })} className={`p-3 rounded-2xl border cursor-pointer ${selectedCharger.smartPolicy.mode === m.id ? 'border-emerald-500 bg-emerald-50/80 ring-2 ring-emerald-500/20' : 'border-slate-200 bg-slate-50'}`}>
+                <div key={m.id} onClick={() => handleUpdateSmartPolicy({ mode: m.id as SmartPolicy['mode'] })} className={`p-3 rounded-2xl border cursor-pointer ${selectedCharger.smartPolicy.mode === m.id ? 'border-emerald-500 bg-emerald-50/80 ring-2 ring-emerald-500/20' : 'border-slate-200 bg-slate-50'}`}>
                   <div className="font-extrabold text-xs text-slate-900">{m.name}</div>
                   <div className="text-[10px] text-slate-500">{m.desc}</div>
                 </div>
@@ -1545,7 +1603,7 @@ const HomeCharging: React.FC = () => {
 
             {activeVehApiTab === 'GET_VEHICLES' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[440px] overflow-y-auto">
-                {enodeVehiclesList.map((veh: any) => (
+                {enodeVehiclesList.map((veh: EnodeVehicle) => (
                   <div key={veh.id} onClick={() => { setSelectedVehId(veh.id); setActiveVehApiTab('GET_VEHICLE'); handleFetchEnodeVehicleById(veh.id); }} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-sky-400 transition-all cursor-pointer space-y-3">
                     <div className="flex justify-between items-start">
                       <div>

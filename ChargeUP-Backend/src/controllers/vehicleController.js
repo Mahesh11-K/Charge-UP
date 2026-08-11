@@ -4,8 +4,8 @@ const smartcar = require('smartcar');
 // Read FRONTEND_URL fresh each request to avoid stale cached value after restarts
 const getFrontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
 
-// Initialize Smartcar SDK Auth Client — cached per process to reuse the same instance
-// (Re-reads env vars on first call or after credential change)
+// Initialize Smartcar SDK Auth Client —  
+
 let _cachedClient = null;
 let _cachedClientId = null;
 let _cachedClientSecret = null;
@@ -181,7 +181,7 @@ exports.getSmartcarAuthUrl = (req, res) => {
     // Always read fresh from process.env at request-time (not module-load-time)
     const clientId = (process.env.SMARTCAR_CLIENT_ID || '').trim();
     const isUnconfigured = !clientId
-      || clientId === 'your_smartcar_client_id_here'
+      || clientId === 'ecdeea27-77d6-485d-99d0-25c6915a8bf0'
       || clientId === 'client_01KYM4R6HB20DF9QAVM1D5W55W'; // M2M key — wrong type
 
     if (isUnconfigured) {
@@ -285,9 +285,7 @@ exports.handleSmartcarCallback = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/vehicles/smartcar/token
-// Smartcar Request Access Token API: POST https://auth.smartcar.com/oauth/token
-// Spec: https://smartcar.com/docs/api-reference/authorization/request-access-token
+// POST /api/vehicles/smartcar/token 
 // ─────────────────────────────────────────────────────────────
 exports.exchangeAccessToken = async (req, res) => {
   const { code } = req.body;
@@ -316,8 +314,7 @@ exports.exchangeAccessToken = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/vehicles/smartcar/refresh
-// Smartcar Refresh Access Token API: POST https://auth.smartcar.com/oauth/token
+// POST /api/vehicles/smartcar/refresh 
 // ─────────────────────────────────────────────────────────────
 exports.refreshAccessToken = async (req, res) => {
   const { refreshToken } = req.body;
@@ -389,9 +386,7 @@ exports.controlCharging = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 5. POST /api/vehicles/charge-limit — Set Charge Limit
-// Smartcar API: POST /v2.0/vehicles/{id}/charge/limit
-// Spec: https://smartcar.com/docs/api-reference/charging/set-charge-limit
+// 5. POST /api/vehicles/charge-limit — Set Charge Limit 
 // ─────────────────────────────────────────────────────────────
 exports.setChargeLimit = async (req, res) => {
   const { vehicleId, limit } = req.body;
@@ -453,7 +448,7 @@ exports.controlSecurity = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // 7. POST /api/vehicles/charge-schedule — Set Daily Charge Schedule
-// Smartcar API: POST /v2.0/vehicles/{id}/charge/schedule
+ 
 // ─────────────────────────────────────────────────────────────
 exports.setDailyChargeSchedule = async (req, res) => {
   const { vehicleId, startTime, endTime } = req.body;
@@ -482,7 +477,6 @@ exports.setDailyChargeSchedule = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────
 // 8. DELETE /api/vehicles/charge-schedule — Delete Charge Schedule
-// Smartcar API: DELETE /v2.0/vehicles/{id}/charge/schedule
 // ─────────────────────────────────────────────────────────────
 exports.deleteChargeSchedule = async (req, res) => {
   const { vehicleId } = req.body;

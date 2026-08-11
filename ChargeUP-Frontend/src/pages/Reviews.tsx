@@ -189,9 +189,9 @@ const Reviews: React.FC = () => {
         setToastMessage('🎉 Thank you! Your review has been posted live.');
         setTimeout(() => setToastMessage(null), 5000);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to post review:', err);
-      const errMsg = err?.response?.data?.error || 'Failed to submit review. Please try again.';
+      const errMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to submit review. Please try again.';
       setFormError(errMsg);
     } finally {
       setIsSubmitting(false);

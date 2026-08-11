@@ -691,7 +691,7 @@ export const Products: React.FC = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveCategoryTab(tab.id as any)}
+                onClick={() => setActiveCategoryTab(tab.id as 'all' | 'ac' | 'dc' | 'hardware')}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                   activeCategoryTab === tab.id
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'

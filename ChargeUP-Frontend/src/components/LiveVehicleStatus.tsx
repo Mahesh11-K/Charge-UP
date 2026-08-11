@@ -86,7 +86,7 @@ const loadSavedVehicles = (): Vehicle[] => {
       (v.smartcarConnected === true && !v.id.startsWith('smartcar_test_') && !v.id.startsWith('sim_'))
     );
     return valid.length > 0 ? valid : DEFAULT_VEHICLES;
-  } catch (e) {
+  } catch {
     return DEFAULT_VEHICLES;
   }
 };
@@ -95,7 +95,7 @@ const loadSavedSelectedId = (): string => {
   try {
     const id = localStorage.getItem(STORAGE_KEY_SELECTED);
     return id || DEFAULT_VEHICLES[0].id;
-  } catch (e) {
+  } catch {
     return DEFAULT_VEHICLES[0].id;
   }
 };
@@ -111,10 +111,45 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
   const [showSchedule, setShowSchedule] = useState<boolean>(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>(loadSavedVehicles);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(loadSavedSelectedId);
-  const [commandStatus, setCommandStatus] = useState<string | null>(null);
+  const [commandStatus, setCommandStatus] = useState<string | null>(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('smartcar_error') === 'true') {
+      const reason = searchParams.get('reason') || 'unknown';
+      const reasonMessages: Record<string, string> = {
+        invalid_secret:      '⚠️ Smartcar Notice: Check Client Secret in backend .env',
+        invalid_credentials: '⚠️ Smartcar Notice: Invalid credentials in .env',
+        code_expired:        '⚠️ Smartcar Notice: OAuth code expired — please try again',
+        oauth_denied:        '⚠️ Smartcar Notice: Access denied by user',
+        no_code:             '⚠️ Smartcar Notice: Authorization code missing',
+        no_vehicles:         '⚠️ Smartcar Notice: No vehicles found on account',
+        telemetry_error:     '⚠️ Smartcar Notice: Telemetry read issue',
+        fetch_failed:        '⚠️ Smartcar Notice: Vehicle fetch failed',
+      };
+      return reasonMessages[reason] || `⚠️ Smartcar Notice (${reason})`;
+    }
+    return null;
+  });
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [, setIsAddingVehicle] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const activeVehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0] || DEFAULT_VEHICLES[0];
+
+  // Schedule Inputs Local State
+  const [schedStart, setSchedStart] = useState<string>(activeVehicle.schedule?.startTime || '01:00');
+  const [schedEnd, setSchedEnd] = useState<string>(activeVehicle.schedule?.endTime || '06:00');
+  const [prevActiveVehicleId, setPrevActiveVehicleId] = useState<string>(selectedVehicleId);
+
+  if (prevActiveVehicleId !== selectedVehicleId) {
+    setPrevActiveVehicleId(selectedVehicleId);
+    setSchedStart(activeVehicle.schedule?.startTime || '01:00');
+    setSchedEnd(activeVehicle.schedule?.endTime || '06:00');
+  }
+
+  const showToast = (msg: string) => {
+    setCommandStatus(msg);
+    setTimeout(() => setCommandStatus(null), 4000);
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -126,19 +161,6 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const activeVehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0] || DEFAULT_VEHICLES[0];
-
-  // Schedule Inputs Local State
-  const [schedStart, setSchedStart] = useState<string>(activeVehicle.schedule?.startTime || '01:00');
-  const [schedEnd, setSchedEnd] = useState<string>(activeVehicle.schedule?.endTime || '06:00');
-
-  useEffect(() => {
-    if (activeVehicle.schedule) {
-      setSchedStart(activeVehicle.schedule.startTime || '01:00');
-      setSchedEnd(activeVehicle.schedule.endTime || '06:00');
-    }
-  }, [selectedVehicleId, vehicles]);
 
   // Sync state between all mounted components & browser localStorage
   useEffect(() => {
@@ -163,18 +185,6 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
     const isSmartcarSuccess = searchParams.get('smartcar_success') === 'true';
 
     if (isSmartcarError) {
-      const reason = searchParams.get('reason') || 'unknown';
-      const reasonMessages: Record<string, string> = {
-        invalid_secret:      '⚠️ Smartcar Notice: Check Client Secret in backend .env',
-        invalid_credentials: '⚠️ Smartcar Notice: Invalid credentials in .env',
-        code_expired:        '⚠️ Smartcar Notice: OAuth code expired — please try again',
-        oauth_denied:        '⚠️ Smartcar Notice: Access denied by user',
-        no_code:             '⚠️ Smartcar Notice: Authorization code missing',
-        no_vehicles:         '⚠️ Smartcar Notice: No vehicles found on account',
-        telemetry_error:     '⚠️ Smartcar Notice: Telemetry read issue',
-        fetch_failed:        '⚠️ Smartcar Notice: Vehicle fetch failed',
-      };
-      showToast(reasonMessages[reason] || `⚠️ Smartcar Notice (${reason})`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -237,7 +247,7 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         }
-      } catch (err) {
+      } catch {
         console.warn('Using cached storage for vehicles');
       }
     };
@@ -265,11 +275,6 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
     }
   };
 
-  const showToast = (msg: string) => {
-    setCommandStatus(msg);
-    setTimeout(() => setCommandStatus(null), 4000);
-  };
-
   // Connect new EV via Smartcar OAuth Flow
   const handleAddVehicle = async () => {
     setIsAddingVehicle(true);
@@ -282,8 +287,8 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
       } else {
         showToast('⚠️ Could not obtain Smartcar authorization URL.');
       }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Could not connect to Smartcar API. Make sure backend is running.';
+    } catch (err: unknown) {
+      const errorMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Could not connect to Smartcar API. Make sure backend is running.';
       showToast(`⚠️ ${errorMsg}`);
     } finally {
       setIsAddingVehicle(false);
@@ -319,7 +324,7 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
       } else if (type === 'security') {
         await API.post('/vehicles/security', { vehicleId: activeVehicle.id, action });
       }
-    } catch (e) {
+    } catch {
       // Offline fallback
     }
 
@@ -346,7 +351,7 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
         vehicleId: activeVehicle.id,
         limit: newLimitPercent
       });
-    } catch (e) {
+    } catch {
       // Local fallback handled
     }
 
@@ -375,7 +380,7 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
         startTime: schedStart,
         endTime: schedEnd
       });
-    } catch (e) {
+    } catch {
       // Local fallback handled
     }
 
@@ -402,7 +407,7 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
       await API.delete('/vehicles/charge-schedule', {
         data: { vehicleId: activeVehicle.id }
       });
-    } catch (e) {
+    } catch {
       // Local fallback handled
     }
 
@@ -417,7 +422,7 @@ export const LiveVehicleStatus: React.FC<LiveVehicleStatusProps> = ({ mode = 'fl
       await API.delete('/vehicles/disconnect', {
         data: { vehicleId: targetVehicle.id }
       });
-    } catch (e) {
+    } catch {
       console.warn("Offline fallback for Smartcar disconnect API");
     }
 

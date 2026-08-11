@@ -36,7 +36,14 @@ const Locations: React.FC = () => {
   const urlQuery = searchParams.get('search') || searchParams.get('q') || '';
 
   const [stations, setStations] = useState<EVStation[]>(DUBLIN_DUMMY_STATIONS);
-  const [searchQuery, setSearchQuery] = useState<string>(urlQuery); 
+  const [searchQuery, setSearchQuery] = useState<string>(urlQuery);
+  const [prevUrlQuery, setPrevUrlQuery] = useState<string>(urlQuery);
+
+  if (prevUrlQuery !== urlQuery) {
+    setPrevUrlQuery(urlQuery);
+    setSearchQuery(urlQuery);
+  }
+
   const [selectedStation, setSelectedStation] = useState<EVStation | null>(DUBLIN_DUMMY_STATIONS[0]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showMap, setShowMap] = useState<boolean>(false);
@@ -44,14 +51,6 @@ const Locations: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<{ [key: number]: maplibregl.Marker }>({});
-
-  // Sync searchQuery when URL query param changes
-  useEffect(() => {
-    const q = searchParams.get('search') || searchParams.get('q');
-    if (q !== null) {
-      setSearchQuery(q);
-    }
-  }, [searchParams]);
 
   // Dynamic Search Filtering
   const filteredStations = stations.filter((station) => {
@@ -63,19 +62,6 @@ const Locations: React.FC = () => {
       station.kwSpeed.toLowerCase().includes(query)
     );
   });
-
-  // Maintain active selection
-  useEffect(() => {
-    if (filteredStations.length > 0) {
-      const isStillVisible = filteredStations.some((s) => s.id === selectedStation?.id);
-      if (!isStillVisible) {
-        setSelectedStation(filteredStations[0]);
-      }
-    } else {
-      setSelectedStation(null);
-    }
-  }, [searchQuery, stations, selectedStation?.id]);
-
 
   // Load Station Data
   useEffect(() => {
@@ -90,7 +76,7 @@ const Locations: React.FC = () => {
           setIsLoading(false);
           return;
         }
-      } catch (err) {
+      } catch {
         console.warn('Backend server offline. Querying OpenChargeMap API / Geolocation...');
       }
 
