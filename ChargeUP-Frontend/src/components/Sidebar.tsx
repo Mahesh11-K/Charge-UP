@@ -319,19 +319,6 @@ export const Sidebar: React.FC = () => {
             </button>
           </div>
 
-          {/* Active Status & Range indicator in expanded mode */}
-          <div className={`text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1 pt-1 ${
-            isSidebarCollapsed ? 'lg:hidden' : 'flex'
-          }`}>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span>Network Active</span>
-            </span>
-            <span className="font-extrabold text-slate-700 dark:text-slate-300">
-              {settings.distanceUnit === 'km' ? '98.5 km/h' : '61.2 mph'}
-            </span>
-          </div>
-
         </div>
       </aside>
 
